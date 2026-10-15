@@ -86,3 +86,17 @@ body {
   opacity: 0;
   pointer-events: none;
 }
+
+#perf {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.55);
+  color: #e8f0e8;
+  font: 11px/1.35 ui-monospace, Menlo, Consolas, monospace;
+  white-space: pre;
+  pointer-events: none;
+  z-index: 10;
+}
