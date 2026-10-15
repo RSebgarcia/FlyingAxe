@@ -58,6 +58,20 @@ export interface Fx {
   dispose(): void;
 }
 
+/** GL por software (SwiftShader, llvmpipe) o el adaptador de reserva de WebGPU. */
+export function isSoftwareRenderer(renderer: WebGPURenderer): boolean {
+  const backend = renderer.backend as {
+    gl?: WebGL2RenderingContext;
+    adapter?: { info?: { isFallbackAdapter?: boolean } };
+  };
+  if (backend.adapter?.info?.isFallbackAdapter) return true;
+  const gl = backend.gl;
+  if (!gl) return false;
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  const name = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+  return /swiftshader|llvmpipe|software|basic render/i.test(name);
+}
+
 export function installFx(opts: FxOptions): Fx {
   const bus = opts.bus ?? defaultBus;
   const juice = new Juice(opts.scene, opts.camera, bus);
@@ -91,6 +105,10 @@ export function installFx(opts: FxOptions): Fx {
     for (const p of [juice.chips, juice.dust, weather.rain, weather.snow]) p.setDensity(q.particles);
     post.enabled = q.post;
   };
+  // Sin GPU (GL por software: máquinas con la placa bloqueada, o el CI) el post solo
+  // ya baja el juego a un cuadro por segundo. Se arranca sin post y con la mitad de
+  // partículas; si hay gobernador de calidad, él manda desde el primer frame.
+  if (isSoftwareRenderer(opts.renderer)) setQuality({ particles: 0.5, post: false });
 
   return {
     juice,

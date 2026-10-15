@@ -1,10 +1,11 @@
 import { ACESFilmicToneMapping, type Camera, type Scene } from 'three/webgpu';
 import { RenderPipeline, type Node, type WebGPURenderer } from 'three/webgpu';
 import {
-  builtinAOContext,
   float,
+  mix,
   mrt,
   normalView,
+  output,
   pass,
   renderOutput,
   saturation,
@@ -23,7 +24,9 @@ import { ao } from 'three/addons/tsl/display/GTAONode.js';
 // - Bloom: lo que hace que el sol y los bordes iluminados "respiren". Umbral 1.05 en HDR,
 //   como el glow de Godot, así solo brilla lo que de verdad se pasa de blanco.
 // - AO (GTAO): hunde los contactos. Es lo que hace que la leña se vea APOYADA sobre el
-//   tocón en vez de flotando. Como el SSAO de Godot, oscurece solo la luz indirecta.
+//   tocón en vez de flotando. Sale de la misma pasada de la escena (normales por MRT):
+//   una pasada previa aparte duplicaba el costo de dibujar la escena, y en un teléfono o
+//   con GL por software eso es la diferencia entre jugable y no.
 
 export interface PostOptions {
   ao?: boolean;
@@ -34,6 +37,7 @@ export class PostFx {
   readonly pipeline: RenderPipeline;
   readonly contrast = uniform(1.06);
   readonly saturation = uniform(1.08);
+  readonly aoStrength = uniform(0.7);
   /** Sin post, se dibuja directo (con ACES igual). Lo baja la calidad adaptativa. */
   enabled = true;
 
@@ -52,23 +56,24 @@ export class PostFx {
     pipeline.outputColorTransform = false;
 
     const scenePass = pass(scene, camera);
-
-    if (opts.ao ?? true) {
-      // Pasada previa solo con profundidad y normales para alimentar al AO.
-      const prePass = pass(scene, camera);
-      prePass.setMRT(mrt({ output: normalView }));
-      const aoPass = ao(prePass.getTextureNode('depth'), prePass.getTextureNode(), camera);
-      aoPass.radius.value = 0.6;
-      aoPass.scale.value = 1.6;
-      aoPass.resolutionScale = 0.5;
-      scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r);
-    }
+    const useAO = opts.ao ?? true;
+    // Las pasadas son de media precisión, así que la normal entra cruda, con signo.
+    if (useAO) scenePass.setMRT(mrt({ output, normal: normalView }));
 
     const hdr = scenePass.getTextureNode('output');
     let color: Node<'vec4'> = hdr;
+    if (useAO) {
+      const aoPass = ao(scenePass.getTextureNode('depth'), scenePass.getTextureNode('normal'), camera);
+      aoPass.radius.value = 0.6;
+      aoPass.scale.value = 1.6;
+      aoPass.resolutionScale = 0.5;
+      // Godot oscurece solo la luz indirecta; acá se aplica a todo, así que va atenuado.
+      const occlusion = mix(float(1), aoPass.getTextureNode().sample(screenUV).r, this.aoStrength);
+      color = vec4(hdr.rgb.mul(occlusion), hdr.a);
+    }
     if (opts.bloom ?? true) {
       const glow = bloom(hdr, 0.5, 0.4, 1.05);
-      color = hdr.add(glow);
+      color = color.add(glow);
     }
 
     const mapped = renderOutput(color);
