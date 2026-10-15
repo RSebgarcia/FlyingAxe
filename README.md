@@ -47,7 +47,7 @@ src/
   fx/              (step 3) chips, hit-stop, camera shake, sound, weathers
   ui/              HUD (DOM over the canvas) and styles
 tests/
-  unit/            Vitest, headless; the physics calibration bench goes here (step 2)
+  unit/            Vitest, headless (any tests/**/*.test.ts runs, in node)
   e2e/             Playwright smoke test against the production build
 tools/
   build-assets.mjs rebuilds public/assets from the Godot project

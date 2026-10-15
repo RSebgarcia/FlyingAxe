@@ -25,6 +25,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/unit/**/*.test.ts'],
+    // Unit tests anywhere under tests/; the Playwright specs (*.spec.ts) stay out.
+    include: ['tests/**/*.test.ts'],
   },
 });
