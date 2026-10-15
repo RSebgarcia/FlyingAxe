@@ -1,8 +1,8 @@
+import RAPIER from '@dimforge/rapier3d-compat';
 import { Timer } from 'three/webgpu';
+import { GameSim, GameplayView, attachKnobKeys, browserStore } from './gameplay';
 import { buildWorld } from './game/world';
 import { Pointer } from './input/pointer';
-import { Physics } from './physics/physics';
-import { addStaticCollider } from './physics/static';
 import { Assets } from './render/assets';
 import { createRenderer } from './render/renderer';
 import { Hud } from './ui/hud';
@@ -11,12 +11,17 @@ async function main() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const hud = new Hud();
 
-  const [{ renderer, backend }, physics] = await Promise.all([createRenderer(canvas), Physics.create()]);
+  const [{ renderer, backend }] = await Promise.all([createRenderer(canvas), RAPIER.init()]);
   const world = await buildWorld(new Assets(renderer));
-  addStaticCollider(physics, world.ground, 'box');
-  addStaticCollider(physics, world.stump, 'cylinder');
 
+  // El juego (paso 2): su propio mundo de Rapier con el piso, el tocón, el hacha y la
+  // leña, a 120 Hz fijos. La vista reusa el hacha y la leña que armó el escenario.
+  const sim = new GameSim(RAPIER, { store: browserStore() });
+  const view = new GameplayView(sim, world.scene, { axe: world.axe, log: world.log });
   const pointer = new Pointer(canvas, world.camera);
+  pointer.onDown(() => sim.grab(pointer.world));
+  pointer.onUp(() => sim.release());
+  attachKnobKeys(sim);
 
   const resize = () => {
     renderer.setSize(innerWidth, innerHeight, false);
@@ -26,17 +31,25 @@ async function main() {
   addEventListener('resize', resize);
   resize();
 
+  const showLog = () => {
+    const l = sim.log;
+    hud.setSpecies(l.woodName(), `${(l.radius * 200).toFixed(0)} × ${(l.height * 100).toFixed(0)} cm · ${l.logMass.toFixed(1)} kg`);
+  };
+  sim.on('newLog', showLog);
+  sim.on('score', (e) => hud.setScore(e.score));
   hud.setScore(0);
   hud.setHint('Agarrá el hacha y movela, el peso está en la cabeza');
-  hud.setSpecies('Pino', '32 × 40 cm · 3.2 kg');
+  showLog();
 
   // Exposed for the browser smoke test and for poking around in the console.
-  Object.assign(window, { flyingAxe: { renderer, backend, world, physics, pointer } });
+  Object.assign(window, { flyingAxe: { renderer, backend, world, sim, pointer } });
 
   const timer = new Timer();
   renderer.setAnimationLoop((t) => {
     timer.update(t);
-    physics.update(timer.getDelta());
+    if (sim.isHeld()) sim.setPointer(pointer.world);
+    sim.update(timer.getDelta());
+    view.sync();
     world.sky.follow(world.camera);
     renderer.render(world.scene, world.camera);
   });

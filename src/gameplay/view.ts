@@ -5,7 +5,7 @@
 import {
   BufferAttribute, BufferGeometry, Group, type Material, Mesh, MeshStandardMaterial,
   type Object3D, type Scene,
-} from 'three';
+} from 'three/webgpu';
 import type { Half } from './woodLog';
 import type { PrismData } from './prism';
 import type { GameSim } from './sim';
@@ -35,29 +35,50 @@ export function fallbackLogMaterials(): LogMaterials {
   };
 }
 
+/** Corteza y madera de una malla que ya las tenga (lados, tapas), si las tiene. */
+function materialsOf(log: Mesh | undefined): LogMaterials | null {
+  if (!log || !Array.isArray(log.material) || log.material.length < 2) return null;
+  return { bark: log.material[0], cut: log.material[1] };
+}
+
 export class GameplayView {
   /** El hacha: su origen es el agarre. El modelo se cuelga adentro. */
-  readonly axe = new Group();
+  readonly axe: Group;
   private readonly whole: Mesh;
   private carried: Mesh | null = null;
   private halfMeshes = new Map<Half, Mesh>();
   private version = -1;
   private readonly mats: Material[];
 
+  /**
+   * Con `axe` y `log` reusa los objetos que ya armó el escenario (game/world.ts): el
+   * grupo del hacha con su modelo adentro, y la malla de la leña con sus materiales de
+   * corteza y madera. Sin ellos crea los suyos.
+   */
   constructor(
     private readonly sim: GameSim,
     private readonly scene: Scene,
-    opts: { axeModel?: Object3D; materials?: LogMaterials } = {},
+    opts: { axe?: Group; log?: Mesh; axeModel?: Object3D; materials?: LogMaterials } = {},
   ) {
-    const m = opts.materials ?? fallbackLogMaterials();
+    const m = opts.materials ?? materialsOf(opts.log) ?? fallbackLogMaterials();
     this.mats = [m.bark, m.cut];
-    this.axe.name = 'Axe';
-    if (opts.axeModel) this.setAxeModel(opts.axeModel);
-    scene.add(this.axe);
-    this.whole = new Mesh(new BufferGeometry(), this.mats);
-    this.whole.name = 'Log';
-    this.whole.castShadow = this.whole.receiveShadow = true;
-    scene.add(this.whole);
+    if (opts.axe) {
+      this.axe = opts.axe;
+    } else {
+      this.axe = new Group();
+      this.axe.name = 'Axe';
+      if (opts.axeModel) this.setAxeModel(opts.axeModel);
+      scene.add(this.axe);
+    }
+    if (opts.log) {
+      this.whole = opts.log;
+      this.whole.material = this.mats;
+    } else {
+      this.whole = new Mesh(new BufferGeometry(), this.mats);
+      this.whole.name = 'Log';
+      this.whole.castShadow = this.whole.receiveShadow = true;
+      scene.add(this.whole);
+    }
     this.sync();
   }
 

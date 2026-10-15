@@ -1,34 +1,11 @@
-// Entrada de escritorio: mouse (o cualquier puntero) para agarrar y soltar, y las
-// perillas en vivo del teclado, como en game.gd. El táctil fino es del paso 4; con
-// Pointer Events un dedo ya agarra y suelta igual que el mouse.
+// Perillas en vivo del teclado, como en game.gd. El puntero (mouse, lápiz y dedo) es de
+// src/input/pointer.ts; main.ts lo conecta con sim.grab / setPointer / release.
 //
 //   ↑↓ pesa · ←→ distancia · W S agarre · A D muñeca · Q E ayuda · R reiniciar
 
-import { type Camera, Vector2 } from 'three';
-import { pointerToPlane } from './pointer';
 import type { GameSim } from './sim';
 
-export function attachInput(sim: GameSim, el: HTMLElement, camera: Camera): () => void {
-  const ndc = new Vector2();
-  const toWorld = (e: PointerEvent) => {
-    const r = el.getBoundingClientRect();
-    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    return pointerToPlane(camera, ndc) ?? sim.axe.position();
-  };
-
-  const down = (e: PointerEvent) => {
-    if (e.button !== 0) return;
-    el.setPointerCapture(e.pointerId);
-    sim.grab(toWorld(e));
-  };
-  const move = (e: PointerEvent) => {
-    if (sim.isHeld()) sim.setPointer(toWorld(e));
-  };
-  const up = (e: PointerEvent) => {
-    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
-    sim.release();
-  };
-
+export function attachKnobKeys(sim: GameSim, target: Window = window): () => void {
   const key = (e: KeyboardEvent) => {
     if (e.repeat) return;
     const a = sim.axe;
@@ -52,17 +29,6 @@ export function attachInput(sim: GameSim, el: HTMLElement, camera: Camera): () =
     sim.saveKnobs();
   };
 
-  el.style.touchAction = 'none';
-  el.addEventListener('pointerdown', down);
-  el.addEventListener('pointermove', move);
-  el.addEventListener('pointerup', up);
-  el.addEventListener('pointercancel', up);
-  window.addEventListener('keydown', key);
-  return () => {
-    el.removeEventListener('pointerdown', down);
-    el.removeEventListener('pointermove', move);
-    el.removeEventListener('pointerup', up);
-    el.removeEventListener('pointercancel', up);
-    window.removeEventListener('keydown', key);
-  };
+  target.addEventListener('keydown', key);
+  return () => target.removeEventListener('keydown', key);
 }

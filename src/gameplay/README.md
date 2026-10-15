@@ -11,31 +11,15 @@ nada de luces, cielo, partículas ni sonido.
 | `prism.ts` | mallas de la leña y sus mitades, con UV en metros y dos materiales | `prism.gd` |
 | `sim.ts` | el juego sin render: mundo de Rapier, paso fijo, ruteo de golpes, puntaje | `game.gd` |
 | `knobs.ts` | perillas guardadas en `localStorage` | `settings.gd` |
-| `pointer.ts`, `input.ts` | mouse/dedo al plano de juego, teclas de las perillas | `game.gd` |
+| `input.ts` | teclas de las perillas (el puntero es `src/input/pointer.ts`) | `game.gd` |
 | `view.ts` | dibuja la leña y mueve el modelo del hacha según la física | — |
 
-## Cómo se usa
+## Cómo se conecta
 
-```ts
-import RAPIER from '@dimforge/rapier3d-compat';
-import { GameSim, GameplayView, attachInput, browserStore } from './gameplay';
-
-await RAPIER.init();
-const sim = new GameSim(RAPIER, { store: browserStore() });
-const view = new GameplayView(sim, scene, { axeModel, materials: { bark, cut } });
-attachInput(sim, renderer.domElement, camera);
-
-renderer.setAnimationLoop((t) => {
-  sim.update(clock.getDelta()); // corre los pasos fijos de 1/120 s que hagan falta
-  view.sync();
-  renderer.render(scene, camera);
-});
-```
-
-- `axeModel` es el objeto `aXE` de `Axe.glb`; `GameplayView` le aplica la escala 0.09 y
-  el giro de 180° en Y de `main.tscn`.
-- `bark` y `cut` necesitan `RepeatWrapping`: las UV de la leña van en metros.
-- Cámara de `game.gd`: posición `(2.9, 1.5, 3.2)` mirando a `(0, 1, 0.6)`, fov 52.
+`src/main.ts` arma el `GameSim` con su propio mundo de Rapier (piso, tocón, hacha y leña),
+le pasa a `GameplayView` el hacha y la leña que construye `game/world.ts`, y conecta el
+`Pointer` de `src/input` con `sim.grab`, `sim.setPointer` y `sim.release`. En cada frame:
+`sim.update(dt)` corre los pasos fijos de 1/120 s y `view.sync()` mueve la escena.
 
 ## Ganchos para los otros pasos
 
@@ -43,13 +27,14 @@ renderer.setAnimationLoop((t) => {
 `newLog` y `score`. Cada evento trae el punto, la normal y la fuerza relativa al umbral,
 que es lo que usaban `juice.gd` y `sfx.gd`. La cámara lenta es `sim.timeScale`.
 
-El táctil (paso 4) solo necesita `sim.grab(punto)`, `sim.setPointer(punto)` y
-`sim.release()`, con el punto proyectado por `pointerToPlane`.
+El táctil (paso 4) vive en `src/input/pointer.ts`; el juego solo necesita
+`sim.grab(punto)`, `sim.setPointer(punto)` y `sim.release()`.
 
 ## Diferencias con Godot, a propósito
 
-- **Plano x = 0 con ejes bloqueados de Rapier** en vez de corregir la pose a mano cada
-  paso. Mismo resultado sin la zona muerta ni el temblor que esa corrección traía.
+- **Giro bloqueado con los ejes de Rapier** (solo sobre X). La traslación en X se sigue
+  corrigiendo a mano con zona muerta, como en Godot: bloquear las dos cosas a la vez en
+  Rapier 0.21 apaga la fricción y el hacha patinaba para siempre en el pasto.
 - **Masa efectiva solo con el giro sobre X.** Godot usaba el tensor entero, y un contacto
   corrido del plano (el borde de la leña al cascarla) se llevaba el término de Y, que es
   chico, y desplomaba la cuenta: el cascazo medía 1.7 J donde el solver frenaba 7.4 kg.
@@ -63,5 +48,5 @@ El táctil (paso 4) solo necesita `sim.grab(punto)`, `sim.setPointer(punto)` y
 
 ## Bancos de prueba
 
-`tests/gameplay/bench.ts` porta `autoplay.gd`, `slam_test.gd` y `tap_test.gd`. Corren en
+`tests/unit/gameplay/bench.ts` porta `autoplay.gd`, `slam_test.gd` y `tap_test.gd`. Corren en
 Vitest, sin navegador, y son deterministas.

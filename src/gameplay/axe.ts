@@ -10,7 +10,7 @@
 // del jugador.
 
 import type RAPIER_NS from '@dimforge/rapier3d-compat';
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three/webgpu';
 import {
   AXE_BOXES, AXE_HOME_ANGLE_X, AXE_HOME_POS, AXE_LENGTH, COM_LOCAL, CONTACT_COOLDOWN,
   DEFAULT_FRICTION, DEFAULT_LINEAR_DAMP, EDGE_POINT, EDGE_RADIUS, VELOCITY_HISTORY,
@@ -115,11 +115,11 @@ export class Axe {
       .setCanSleep(false)
       .setCcdEnabled(true);
     this.body = world.createRigidBody(desc);
-    // EL ARREGLO DEL GIRO LOCO, hecho con los ejes bloqueados del motor. En Godot se
-    // anulaba a mano el giro en Y/Z y se reproyectaba la pose al plano x = 0, con zona
-    // muerta para no pelearse con el solver. Acá el solver directamente no puede
-    // moverla fuera del plano: vive en x = 0 y solo tumbea sobre X.
-    this.body.setEnabledTranslations(false, true, true, true);
+    // EL ARREGLO DEL GIRO LOCO: el hacha vive en x = 0 y solo tumbea sobre X. El giro se
+    // bloquea con los ejes del motor, así que el solver no puede hacerla rolar. La
+    // traslación en X NO se bloquea igual: en Rapier 0.21, bloquear giro y traslación a
+    // la vez apaga la fricción (el hacha patinaba para siempre en el pasto). Esa se
+    // corrige a mano en constrainToPlane, con zona muerta como en Godot.
     this.body.setEnabledRotations(true, false, false, true);
 
     for (const b of AXE_BOXES) {
@@ -319,9 +319,21 @@ export class Axe {
 
   /** Lo que en Godot hacía _integrate_forces ANTES del paso de física. */
   preStep(dt: number): void {
+    this.constrainToPlane();
     this.remember();
     if (this.state === AxeState.HELD) this.pullTowardHand(dt);
     if (this.state === AxeState.LOOSE) this.edgeAssist(dt);
+  }
+
+  /**
+   * Clava el hacha al plano x = 0. Solo toca la pose cuando de verdad se salió: reescribirla
+   * todos los pasos obliga al solver a re-resolver el contacto y eso tiembla (axe.gd).
+   */
+  private constrainToPlane(): void {
+    const v = this.body.linvel();
+    if (Math.abs(v.x) > 0.0001) this.body.setLinvel({ x: 0, y: v.y, z: v.z }, true);
+    const p = this.body.translation();
+    if (Math.abs(p.x) > 0.0008) this.body.setTranslation({ x: 0, y: p.y, z: p.z }, true);
   }
 
   /**

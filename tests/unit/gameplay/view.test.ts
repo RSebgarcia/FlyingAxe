@@ -1,32 +1,10 @@
 import RAPIER from '@dimforge/rapier3d-compat';
-import { Mesh, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three';
+import { Mesh, Scene, Vector3 } from 'three/webgpu';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { GameSim, GameplayView, pointerToPlane } from '../../src/gameplay';
+import { GameSim, GameplayView } from '../../../src/gameplay';
 import { initPhysics } from './bench';
 
 beforeAll(initPhysics);
-
-describe('puntero sobre el plano x = 0', () => {
-  it('el centro de la pantalla cae sobre lo que mira la cámara', () => {
-    const cam = new PerspectiveCamera(52, 16 / 9, 0.1, 100);
-    // La cámara de tres cuartos de game.gd.
-    cam.position.set(2.9, 1.5, 3.2);
-    cam.lookAt(0, 1, 0.6);
-    cam.updateMatrixWorld();
-    const p = pointerToPlane(cam, new Vector2(0, 0))!;
-    expect(p.x).toBeCloseTo(0, 6);
-    expect(p.y).toBeCloseTo(1, 1);
-    expect(p.z).toBeCloseTo(0.6, 1);
-  });
-
-  it('mirando el plano de canto no inventa un punto', () => {
-    const cam = new PerspectiveCamera(10, 1, 0.1, 100);
-    cam.position.set(1, 1, 5);
-    cam.lookAt(1, 1, 0);
-    cam.updateMatrixWorld();
-    expect(pointerToPlane(cam, new Vector2(0, 0))).toBeNull();
-  });
-});
 
 describe('vista', () => {
   it('sigue al hacha, esconde la leña cargada y dibuja mitades y escombros', () => {

@@ -41,11 +41,11 @@ export const AXE_BOXES = [
 ] as const;
 
 /**
- * Pose de reposo del hacha (main.tscn): acostada en el pasto, mango hacia -Z,
- * es decir girada -90° sobre X, con el agarre en (0, 0.08, 1.9).
+ * Pose de reposo del hacha (main.tscn): acostada en el pasto, con el mango (+Y local)
+ * hacia +Z, es decir girada +90° sobre X, y el agarre en (0, 0.08, 1.9).
  */
 export const AXE_HOME_POS = { x: 0, y: 0.08, z: 1.9 } as const;
-export const AXE_HOME_ANGLE_X = -Math.PI / 2;
+export const AXE_HOME_ANGLE_X = Math.PI / 2;
 
 /** Ventana de velocidades para medir el golpe con la velocidad de ENTRADA. */
 export const VELOCITY_HISTORY = 3;

@@ -2,12 +2,12 @@
 // Corren headless, a paso fijo, y son deterministas: misma configuración, mismos números.
 
 import RAPIER from '@dimforge/rapier3d-compat';
-import { Vector3 } from 'three';
-import { COM_LOCAL, EDGE_POINT, GRAVITY, PHYSICS_HZ } from '../../src/gameplay/constants';
-import { DEFAULT_KNOBS } from '../../src/gameplay/knobs';
-import { Rng } from '../../src/gameplay/rng';
-import { GameSim } from '../../src/gameplay/sim';
-import type { LogContactInfo } from '../../src/gameplay/axe';
+import { Vector3 } from 'three/webgpu';
+import { COM_LOCAL, EDGE_POINT, GRAVITY, PHYSICS_HZ } from '../../../src/gameplay/constants';
+import { DEFAULT_KNOBS } from '../../../src/gameplay/knobs';
+import { Rng } from '../../../src/gameplay/rng';
+import { GameSim } from '../../../src/gameplay/sim';
+import type { LogContactInfo } from '../../../src/gameplay/axe';
 
 export const SEED = 20260815;
 /**
