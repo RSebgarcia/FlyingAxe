@@ -5,7 +5,7 @@
 // plana en x = 0). Es el truco de siempre en los casuales y se ve igual de bien.
 
 import type RAPIER_NS from '@dimforge/rapier3d-compat';
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three/webgpu';
 import type { Axe, ColliderRole } from './axe';
 import { DEFAULT_ANGULAR_DAMP, DEFAULT_FRICTION, DEFAULT_LINEAR_DAMP } from './constants';
 import { buildPrism, fullPoly, halfPoly, hull, type PrismData } from './prism';

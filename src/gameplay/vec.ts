@@ -1,6 +1,6 @@
 // Puente entre los vectores planos de Rapier y la matemática de three.js.
 
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three/webgpu';
 
 export function toV3(v: { x: number; y: number; z: number }): Vector3 {
   return new Vector3(v.x, v.y, v.z);

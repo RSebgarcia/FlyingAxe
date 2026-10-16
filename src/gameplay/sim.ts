@@ -6,7 +6,7 @@
 // eventos; la entrada táctil (paso 4) solo tiene que llamar a grab / release / pointer.
 
 import type RAPIER_NS from '@dimforge/rapier3d-compat';
-import { Vector3 } from 'three';
+import { Vector3 } from 'three/webgpu';
 import { Axe, type AxeContact, AxeState, type ColliderRole, type LogContactInfo } from './axe';
 import {
   DEFAULT_FRICTION, FALL_LIMIT_Y, FLOOR_HALF, FLOOR_THICK, GRAVITY, PHYSICS_DT,

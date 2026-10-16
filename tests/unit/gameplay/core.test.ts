@@ -1,8 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat';
-import { Vector3 } from 'three';
+import { Vector3 } from 'three/webgpu';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { AXE_HOME_POS, DEFAULT_KNOBS, GameSim, buildPrism, fullPoly, halfPoly, loadKnobs, saveKnobs } from '../../src/gameplay';
-import { Rng } from '../../src/gameplay/rng';
+import { AXE_HOME_POS, DEFAULT_KNOBS, GameSim, buildPrism, fullPoly, halfPoly, loadKnobs, saveKnobs } from '../../../src/gameplay';
+import { Rng } from '../../../src/gameplay/rng';
 import { initPhysics, makeSim } from './bench';
 
 beforeAll(initPhysics);
@@ -70,17 +70,45 @@ describe('agarre tipo péndulo', () => {
     sim.dispose();
   });
 
-  it('con el dedo quieto, el agarre llega y se queda ahí, con agarre alto o bajo', () => {
-    for (const hold of [1, 0.8, 0.2]) {
+  it('con el dedo quieto el agarre llega y bambolea cerca; con más agarre, más pegado', () => {
+    // El péndulo sigue bamboleando un rato (es lo que arma el giro), así que se mide la
+    // distancia promedio entre el segundo 1 y el 4, no un instante.
+    const meanLag = (hold: number) => {
       const sim = makeSim();
       sim.axe.setKnobs({ gripHold: hold });
       sim.grab(sim.axe.position());
       const target = new Vector3(0, 1.4, 1.2);
       sim.setPointer(target);
-      for (let f = 0; f < 120 * 1.5; f++) sim.fixedStep();
-      expect(sim.axe.position().distanceTo(target), `agarre ${hold}`).toBeLessThan(0.05);
+      let sum = 0;
+      let n = 0;
+      for (let f = 0; f < 120 * 4; f++) {
+        sim.fixedStep();
+        if (f >= 120) {
+          sum += sim.axe.position().distanceTo(target);
+          n++;
+        }
+      }
       sim.dispose();
-    }
+      return sum / n;
+    };
+    const tight = meanLag(1);
+    const loose = meanLag(0.2);
+    expect(tight).toBeLessThan(0.06);
+    expect(loose).toBeLessThan(0.12);
+    expect(tight).toBeLessThan(loose);
+  });
+});
+
+describe('fricción con el pasto', () => {
+  it('el hacha que patina acostada en el pasto se frena', () => {
+    // Regresión: bloquear giro y traslación juntos en Rapier apagaba la fricción y el
+    // hacha se deslizaba para siempre.
+    const sim = makeSim();
+    sim.axe.body.setLinvel({ x: 0, y: 0, z: -1 }, true);
+    for (let f = 0; f < 120; f++) sim.fixedStep();
+    expect(Math.abs(sim.axe.linvel().z)).toBeLessThan(0.01);
+    expect(Math.abs(sim.axe.position().x)).toBeLessThan(0.001);
+    sim.dispose();
   });
 });
 
